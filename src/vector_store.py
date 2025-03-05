@@ -30,7 +30,7 @@ class VectorStore:
         # Initialize OpenAI embeddings instead of HuggingFace
         self.embeddings = OpenAIEmbeddings(
             model="text-embedding-3-small",  # Most cost-effective OpenAI embedding model
-            openai_api_key=config.LLM_API_KEY
+            openai_api_key=config.OPENAI_API_KEY
         )
         
         # Rest of the code remains the same
