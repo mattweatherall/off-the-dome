@@ -8,13 +8,9 @@ import os
 from langchain_openai import ChatOpenAI
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
-from langchain.callbacks.manager import CallbackManager
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-from langchain.schema.document import Document
 from langchain.schema.output_parser import StrOutputParser
 from langchain.schema.runnable import RunnablePassthrough
-from langchain.retrievers import ContextualCompressionRetriever
-from langchain.retrievers.document_compressors import EmbeddingsFilter
+from langchain.schema.document import Document
 
 from src.vector_store import VectorStore
 import config
@@ -50,16 +46,23 @@ class QAChain:
         else:
             self.vector_store = vector_store
             
-        # Initialize LLM
-        # For V1, we're using a simple OpenAI setup, but this can be replaced
-        # with other models like Ollama, Hugging Face models, etc.
-        # The API key should be set in your environment or .env file
-        if config.OPENAI_API_KEY:
+        # Try to get API key from multiple sources
+        api_key = os.environ.get("OPENAI_API_KEY")
+        
+        # If not found in environment, try to get from streamlit secrets
+        if not api_key:
+            try:
+                import streamlit as st
+                api_key = st.secrets.get("OPENAI_API_KEY")
+            except:
+                pass
+                
+        # Initialize LLM if API key is available
+        if api_key:
             self.llm = ChatOpenAI(
                 temperature=0,
-                model_name=config.LLM_MODEL,
-                streaming=True,
-                callback_manager=CallbackManager([StreamingStdOutCallbackHandler()])
+                model=config.LLM_MODEL,
+                openai_api_key=api_key
             )
             
             # Create the retrieval chain
@@ -67,22 +70,13 @@ class QAChain:
         else:
             self.llm = None
             self.chain = None
-            print("Warning: OPENAI_API_KEY not set. QA chain not fully initialized.")
+            print("Warning: OpenAI API key not set. QA chain not fully initialized.")
     
     def _setup_chain(self):
         """Set up the retrieval and QA chain."""
-        # Create the retrieval component with improved relevance filtering
+        # Create the retrieval component - simplified version without compression
         retriever = self.vector_store.vector_db.as_retriever(
             search_kwargs={"k": config.MAX_DOCUMENTS}
-        )
-        
-        # Optional: Add contextual compression for better retrieval
-        # This filters out less relevant passages after initial retrieval
-        embeddings_filter = EmbeddingsFilter(embeddings=self.vector_store.embeddings, 
-                                            similarity_threshold=0.7)
-        compression_retriever = ContextualCompressionRetriever(
-            retriever=retriever,
-            base_compressor=embeddings_filter
         )
         
         # Create the RAG prompt
@@ -148,18 +142,3 @@ class QAChain:
                 "answer": f"An error occurred: {str(e)}",
                 "sources": []
             }
-
-# Example usage
-if __name__ == "__main__":
-    # Initialize the QA chain
-    qa_chain = QAChain()
-    
-    # Test with a sample question
-    if qa_chain.chain:
-        result = qa_chain.answer_question(
-            "What are the barriers to LMICs building their own AI models for education?"
-        )
-        print("\nAnswer:", result["answer"])
-        print("\nSources:")
-        for source in result["sources"]:
-            print(f"- {source['title']} ({source['source']})")
