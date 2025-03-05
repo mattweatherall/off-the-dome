@@ -54,7 +54,7 @@ class QAChain:
         # For V1, we're using a simple OpenAI setup, but this can be replaced
         # with other models like Ollama, Hugging Face models, etc.
         # The API key should be set in your environment or .env file
-        if config.LLM_API_KEY:
+        if config.OPENAI_API_KEY:
             self.llm = ChatOpenAI(
                 temperature=0,
                 model_name=config.LLM_MODEL,
@@ -67,7 +67,7 @@ class QAChain:
         else:
             self.llm = None
             self.chain = None
-            print("Warning: LLM_API_KEY not set. QA chain not fully initialized.")
+            print("Warning: OPENAI_API_KEY not set. QA chain not fully initialized.")
     
     def _setup_chain(self):
         """Set up the retrieval and QA chain."""
