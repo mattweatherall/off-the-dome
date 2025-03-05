@@ -16,7 +16,7 @@ SAMPLE_PAPERS_DIR.mkdir(exist_ok=True)
 DB_DIR.mkdir(exist_ok=True)
 
 # Vector store settings
-VECTOR_STORE_PATH = DB_DIR / "chroma"
+VECTOR_STORE_PATH = ROOT_DIR / "db" / "faiss"
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"  # Lightweight embedding model
 
 # Document processing settings
