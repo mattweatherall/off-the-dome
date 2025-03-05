@@ -81,8 +81,8 @@ class QAChain:
         embeddings_filter = EmbeddingsFilter(embeddings=self.vector_store.embeddings, 
                                             similarity_threshold=0.7)
         compression_retriever = ContextualCompressionRetriever(
-            base_retriever=retriever,
-            doc_compressor=embeddings_filter
+            retriever=retriever,
+            base_compressor=embeddings_filter
         )
         
         # Create the RAG prompt
