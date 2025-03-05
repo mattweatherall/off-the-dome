@@ -28,9 +28,10 @@ class VectorStore:
             self.persist_directory = persist_directory
             
         # Initialize OpenAI embeddings instead of HuggingFace
+        api_key = os.environ.get("OPENAI_API_KEY")
         self.embeddings = OpenAIEmbeddings(
             model="text-embedding-3-small",  # Most cost-effective OpenAI embedding model
-            openai_api_key=config.OPENAI_API_KEY
+            openai_api_key=api_key
         )
         
         # Rest of the code remains the same
