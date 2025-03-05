@@ -25,7 +25,7 @@ CHUNK_OVERLAP = 200
 
 # LLM settings
 LLM_MODEL = "gpt-4o-mini"
-LLM_API_KEY = os.getenv("LLM_API_KEY", "")  # Set your API key in .env or environment variables
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")  # Set your API key in .env or environment variables
 
 # Retrieval settings
 MAX_DOCUMENTS = 5  # Maximum number of documents to retrieve per query
