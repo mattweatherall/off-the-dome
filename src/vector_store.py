@@ -4,10 +4,9 @@ Handles creating and querying the document vector database.
 """
 from typing import List, Dict, Any, Optional
 import os
-import pickle
 
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_openai import OpenAIEmbeddings  # Use OpenAI embeddings instead
 from langchain.schema.document import Document
 
 import config
@@ -28,12 +27,13 @@ class VectorStore:
         else:
             self.persist_directory = persist_directory
             
-        # Initialize the embedding model
-        self.embeddings = HuggingFaceEmbeddings(
-            model_name=config.EMBEDDING_MODEL_NAME
+        # Initialize OpenAI embeddings instead of HuggingFace
+        self.embeddings = OpenAIEmbeddings(
+            model="text-embedding-3-small",  # Most cost-effective OpenAI embedding model
+            openai_api_key=config.LLM_API_KEY
         )
         
-        # Initialize or load the vector store
+        # Rest of the code remains the same
         self.index_file = os.path.join(self.persist_directory, "faiss_index")
         self.docs_file = os.path.join(self.persist_directory, "faiss_docs")
         
