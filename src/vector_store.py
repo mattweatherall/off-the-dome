@@ -4,8 +4,9 @@ Handles creating and querying the document vector database.
 """
 from typing import List, Dict, Any, Optional
 import os
+import pickle
 
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.schema.document import Document
 
@@ -20,10 +21,12 @@ class VectorStore:
         
         Args:
             persist_directory: Directory to persist the vector store.
-                              If None, uses the default from config.
+                             If None, uses the default from config.
         """
         if persist_directory is None:
-            persist_directory = config.VECTOR_STORE_PATH
+            self.persist_directory = config.VECTOR_STORE_PATH
+        else:
+            self.persist_directory = persist_directory
             
         # Initialize the embedding model
         self.embeddings = HuggingFaceEmbeddings(
@@ -31,18 +34,34 @@ class VectorStore:
         )
         
         # Initialize or load the vector store
-        if os.path.exists(persist_directory):
-            self.vector_db = Chroma(
-                persist_directory=persist_directory,
-                embedding_function=self.embeddings
-            )
-            print(f"Loaded existing vector store from {persist_directory}")
+        self.index_file = os.path.join(self.persist_directory, "faiss_index")
+        self.docs_file = os.path.join(self.persist_directory, "faiss_docs")
+        
+        if os.path.exists(self.index_file) and os.path.exists(self.docs_file):
+            try:
+                self.vector_db = FAISS.load_local(
+                    self.persist_directory,
+                    self.embeddings,
+                    "faiss_index"
+                )
+                print(f"Loaded existing vector store from {self.persist_directory}")
+            except Exception as e:
+                print(f"Error loading vector store: {e}")
+                self.vector_db = FAISS.from_documents(
+                    [Document(page_content="Placeholder", metadata={})],
+                    self.embeddings
+                )
         else:
-            self.vector_db = Chroma(
-                persist_directory=persist_directory,
-                embedding_function=self.embeddings
+            # Create directory if it doesn't exist
+            os.makedirs(self.persist_directory, exist_ok=True)
+            
+            # Initialize with a placeholder document to create the structure
+            self.vector_db = FAISS.from_documents(
+                [Document(page_content="Placeholder", metadata={})],
+                self.embeddings
             )
-            print(f"Created new vector store at {persist_directory}")
+            self.vector_db.save_local(self.persist_directory, "faiss_index")
+            print(f"Created new vector store at {self.persist_directory}")
     
     def add_documents(self, documents: List[Document]) -> None:
         """
@@ -52,9 +71,13 @@ class VectorStore:
             documents: List of Document objects to add.
         """
         try:
-            self.vector_db.add_documents(documents)
-            self.vector_db.persist()
-            print(f"Added {len(documents)} documents to vector store")
+            if len(documents) > 0:
+                # Add documents to the vector store
+                self.vector_db.add_documents(documents)
+                
+                # Save the updated vector store
+                self.vector_db.save_local(self.persist_directory, "faiss_index")
+                print(f"Added {len(documents)} documents to vector store")
         except Exception as e:
             print(f"Error adding documents to vector store: {e}")
     
@@ -100,32 +123,22 @@ class VectorStore:
             Dictionary with vector store statistics.
         """
         try:
+            # For FAISS, we don't have direct collection stats like ChromaDB
+            # So we'll estimate based on the index
+            doc_count = len(self.vector_db.docstore._dict)
+            
+            # Get a sample document to extract metadata keys
+            metadata_keys = []
+            if doc_count > 0:
+                # Get first document's metadata keys
+                sample_doc_id = next(iter(self.vector_db.docstore._dict))
+                sample_doc = self.vector_db.docstore._dict[sample_doc_id]
+                metadata_keys = list(sample_doc.metadata.keys())
+            
             return {
-                "count": self.vector_db._collection.count(),
-                "metadata_keys": list(self.vector_db._collection.get()["metadatas"][0].keys())
-                if self.vector_db._collection.count() > 0 else []
+                "count": doc_count,
+                "metadata_keys": metadata_keys
             }
         except Exception as e:
             print(f"Error getting collection stats: {e}")
             return {"count": 0, "metadata_keys": []}
-
-# Example usage
-if __name__ == "__main__":
-    # Initialize vector store
-    vector_store = VectorStore()
-    
-    # Print stats
-    stats = vector_store.get_collection_stats()
-    print(f"Vector store contains {stats['count']} documents")
-    print(f"Available metadata fields: {stats['metadata_keys']}")
-    
-    # Test search if documents exist
-    if stats['count'] > 0:
-        results = vector_store.similarity_search(
-            "What are the challenges of AI in education?", 
-            k=2
-        )
-        for i, doc in enumerate(results):
-            print(f"\nResult {i+1}:")
-            print(f"Source: {doc.metadata.get('source', 'Unknown')}")
-            print(f"Content: {doc.page_content[:200]}...")
